@@ -54,10 +54,15 @@ enum EmojiSpotlightIndex {
         let indexedVersion = "\(schemaVersion)-\(items.count)"
         guard UserDefaults.standard.string(forKey: indexedVersionKey) != indexedVersion else { return }
 
-        let searchableItems = itemsForIndexing(items).map(searchableItem(for:))
-        CSSearchableIndex.default().indexSearchableItems(searchableItems) { error in
+        CSSearchableIndex.default().deleteSearchableItems(
+            withDomainIdentifiers: [domainIdentifier]
+        ) { error in
             guard error == nil else { return }
-            UserDefaults.standard.set(indexedVersion, forKey: indexedVersionKey)
+            let searchableItems = itemsForIndexing(items).map(searchableItem(for:))
+            CSSearchableIndex.default().indexSearchableItems(searchableItems) { error in
+                guard error == nil else { return }
+                UserDefaults.standard.set(indexedVersion, forKey: indexedVersionKey)
+            }
         }
     }
 
