@@ -12,7 +12,6 @@ cask "spotmoji" do
   homepage "https://omarknows.app/spotmoji/"
 
   auto_updates true
-
   depends_on macos: :sonoma
 
   app "Spotmoji.app"
