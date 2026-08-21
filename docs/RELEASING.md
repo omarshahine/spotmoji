@@ -51,7 +51,7 @@ Spotmoji reads its feed from the stable GitHub URL:
 https://github.com/omarshahine/spotmoji/releases/latest/download/appcast.xml
 ```
 
-The first release containing Sparkle must be installed through Homebrew or GitHub. Releases after that can be installed from the update button inside Spotmoji. The Homebrew cask declares `auto_updates true` so Homebrew does not compete with Sparkle during normal upgrades.
+The first release containing Sparkle must be installed through Homebrew or GitHub. When the picker is open and its throttled check is due, later releases are presented with Sparkle's native update window. The picker also retains an update button that can bring the update window back into focus. The Homebrew cask declares `auto_updates true` so Homebrew does not compete with Sparkle during normal upgrades.
 
 ## Mac App Store
 
