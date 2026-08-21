@@ -159,8 +159,11 @@ jobs:
 
       - name: Update Homebrew cask
         shell: bash
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
+          : "${HOMEBREW_GITHUB_API_TOKEN:?Missing HOMEBREW_TAP_TOKEN}"
           mkdir -p homebrew-tap/Casks
           sed \
             -e "s/__VERSION__/$VERSION/g" \
