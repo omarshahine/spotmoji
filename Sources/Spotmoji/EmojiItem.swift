@@ -13,6 +13,49 @@ enum EmojiSearchText {
     static func compact(_ value: String) -> String {
         value.filter { $0.isLetter || $0.isNumber }.lowercased()
     }
+
+    static func allowedEditDistance(for term: String) -> Int? {
+        switch term.count {
+        case 0...3: nil
+        case 4...7: 1
+        default: 2
+        }
+    }
+
+    // Optimal-string-alignment distance catches both typos and adjacent transpositions.
+    static func editDistance(_ lhs: String, _ rhs: String, limit: Int) -> Int {
+        let left = Array(lhs)
+        let right = Array(rhs)
+        guard abs(left.count - right.count) <= limit else { return limit + 1 }
+
+        var previousPrevious = Array(0...right.count)
+        var previous = previousPrevious
+        for leftIndex in 1...left.count {
+            var current = Array(repeating: 0, count: right.count + 1)
+            current[0] = leftIndex
+            var rowMinimum = current[0]
+            for rightIndex in 1...right.count {
+                let substitution = previous[rightIndex - 1]
+                    + (left[leftIndex - 1] == right[rightIndex - 1] ? 0 : 1)
+                current[rightIndex] = min(
+                    previous[rightIndex] + 1,
+                    current[rightIndex - 1] + 1,
+                    substitution
+                )
+                if leftIndex > 1,
+                   rightIndex > 1,
+                   left[leftIndex - 1] == right[rightIndex - 2],
+                   left[leftIndex - 2] == right[rightIndex - 1] {
+                    current[rightIndex] = min(current[rightIndex], previousPrevious[rightIndex - 2] + 1)
+                }
+                rowMinimum = min(rowMinimum, current[rightIndex])
+            }
+            if rowMinimum > limit { return limit + 1 }
+            previousPrevious = previous
+            previous = current
+        }
+        return previous[right.count]
+    }
 }
 
 struct EmojiSearchField: Equatable, Sendable {
@@ -94,6 +137,56 @@ struct EmojiItem: Decodable, Equatable, Sendable {
 
     var shortcode: String {
         Self.shortcode(for: name)
+    }
+
+    func matchedAlias(for rawQuery: String) -> String? {
+        let query = EmojiSearchText.normalize(rawQuery)
+        guard !query.isEmpty else { return nil }
+
+        let compactQuery = EmojiSearchText.compact(query)
+        let normalizedName = EmojiSearchText.normalize(name)
+        let candidates = aliases.compactMap { alias -> (alias: String, score: Int)? in
+            let normalizedAlias = EmojiSearchText.normalize(alias)
+            guard !normalizedAlias.isEmpty, normalizedAlias != normalizedName else { return nil }
+
+            let compactAlias = EmojiSearchText.compact(normalizedAlias)
+            if normalizedAlias == query { return (alias, 0) }
+            if compactAlias == compactQuery { return (alias, 1) }
+            if normalizedAlias.hasPrefix(query) { return (alias, 2) }
+            if compactAlias.hasPrefix(compactQuery) { return (alias, 3) }
+            if normalizedAlias.contains(query) { return (alias, 4) }
+            if compactAlias.contains(compactQuery) { return (alias, 5) }
+            return nil
+        }
+
+        if let match = candidates.min(by: {
+            if $0.score != $1.score { return $0.score < $1.score }
+            if $0.alias.count != $1.alias.count { return $0.alias.count < $1.alias.count }
+            return $0.alias < $1.alias
+        }) {
+            return match.alias
+        }
+
+        let queryTerms = query.split(separator: " ").map(String.init)
+        return aliases.compactMap { alias -> (alias: String, score: Int)? in
+            let normalizedAlias = EmojiSearchText.normalize(alias)
+            guard !normalizedAlias.isEmpty, normalizedAlias != normalizedName else { return nil }
+
+            let aliasTerms = normalizedAlias.split(separator: " ").map(String.init)
+            guard aliasTerms.count == queryTerms.count else { return nil }
+
+            let distances = zip(queryTerms, aliasTerms).compactMap { queryTerm, aliasTerm -> Int? in
+                guard let limit = EmojiSearchText.allowedEditDistance(for: queryTerm) else { return nil }
+                let distance = EmojiSearchText.editDistance(queryTerm, aliasTerm, limit: limit)
+                return distance <= limit ? distance : nil
+            }
+            guard distances.count == queryTerms.count else { return nil }
+            return (alias, distances.reduce(0, +))
+        }.min {
+            if $0.score != $1.score { return $0.score < $1.score }
+            if $0.alias.count != $1.alias.count { return $0.alias.count < $1.alias.count }
+            return $0.alias < $1.alias
+        }?.alias
     }
 
     private static func shortcode(for name: String) -> String {

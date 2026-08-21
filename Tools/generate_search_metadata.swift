@@ -62,7 +62,7 @@ func uniqueTerms(_ terms: [String]) -> [String] {
 
 func curatedAliases(for emoji: String) -> [String] {
     switch normalizedEmoji(emoji) {
-    case "✋", "🙏": ["high five", "high 5"]
+    case "✋", "🙌", "🙏": ["high five", "high 5"]
     default: []
     }
 }

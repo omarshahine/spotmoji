@@ -168,6 +168,38 @@ jobs:
               --title "Spotmoji $VERSION"
           fi
 
+      - name: Verify Sparkle upgrade from the previous release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PREVIOUS_TAG="$(
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
+              --json tagName,isDraft,isPrerelease \
+              --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' |
+              awk -v current="$GITHUB_REF_NAME" '$0 != current { print; exit }'
+          )"
+          if [[ -z "$PREVIOUS_TAG" ]]; then
+            echo "No previous release; skipping upgrade-path verification."
+            exit 0
+          fi
+
+          PREVIOUS_DIR="$RUNNER_TEMP/previous-release"
+          mkdir -p "$PREVIOUS_DIR/archive" "$PREVIOUS_DIR/app"
+          gh release download "$PREVIOUS_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'Spotmoji-*.zip' \
+            --dir "$PREVIOUS_DIR/archive"
+          shopt -s nullglob
+          PREVIOUS_ARCHIVES=("$PREVIOUS_DIR/archive"/Spotmoji-*.zip)
+          if [[ ${#PREVIOUS_ARCHIVES[@]} -ne 1 ]]; then
+            echo "Expected one previous Spotmoji archive, found ${#PREVIOUS_ARCHIVES[@]}." >&2
+            exit 1
+          fi
+          ditto -x -k "${PREVIOUS_ARCHIVES[0]}" "$PREVIOUS_DIR/app"
+          ./scripts/verify-update-feed.sh "$PREVIOUS_DIR/app/Spotmoji.app" "$VERSION"
+
       - name: Check out public Homebrew tap
         uses: actions/checkout@v7
         with:

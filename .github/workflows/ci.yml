@@ -26,6 +26,12 @@ jobs:
       - name: Test
         run: swift test
 
+      - name: Validate scripts
+        run: |
+          bash -n scripts/update-search-data.sh
+          bash -n scripts/verify-update-feed.sh
+          zsh -n scripts/build-app.sh
+
       - name: Build app bundle
         run: ./scripts/build-app.sh
 

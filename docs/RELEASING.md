@@ -41,7 +41,9 @@ codesign --verify --deep --strict --verbose=2 /Applications/Spotmoji.app
 spctl --assess --type execute --verbose=2 /Applications/Spotmoji.app
 ```
 
-The workflow tests the package, imports the signing identity into a temporary keychain, signs Sparkle from the inside out, builds with the hardened runtime, notarizes with the App Store Connect API key, staples the ticket, and creates the release archive. It then signs the archive with Sparkle's EdDSA key, publishes `appcast.xml` beside the archive, validates the cask, and updates the public tap.
+The workflow tests the package, imports the signing identity into a temporary keychain, signs Sparkle from the inside out, builds with the hardened runtime, notarizes with the App Store Connect API key, staples the ticket, and creates the release archive. It then signs the archive with Sparkle's EdDSA key and publishes `appcast.xml` beside the archive.
+
+Before updating Homebrew, the workflow downloads the previous notarized Spotmoji release and reads its embedded feed URL and public key. The upgrade-path smoke test confirms that the previous app discovers the new version, verifies the appcast archive's EdDSA signature and length, and accepts the downloaded app through code-sign, Gatekeeper, and stapler validation. The workflow then validates the cask and updates the public tap.
 
 Spotmoji reads its feed from the stable GitHub URL:
 

@@ -53,8 +53,19 @@ final class EmojiSearchTests: XCTestCase {
         for query in ["high five", "high 5", "highfive"] {
             let results = EmojiSearch.search(query, in: bundledItems)
             XCTAssertEqual(results.first?.emoji, "✋", "Unexpected first result for \(query)")
+            XCTAssertTrue(results.prefix(5).contains(where: { $0.emoji == "🙌" }), query)
             XCTAssertTrue(results.prefix(5).contains(where: { $0.emoji == "🙏" }), query)
         }
+    }
+
+    func testMatchedHumanAliasCanBeShownInResults() throws {
+        let bundledItems = try EmojiStore.load()
+        let raisedHand = try XCTUnwrap(bundledItems.first(where: { $0.emoji == "✋" }))
+
+        XCTAssertEqual(raisedHand.matchedAlias(for: "high five"), "high five")
+        XCTAssertEqual(raisedHand.matchedAlias(for: "high 5"), "high 5")
+        XCTAssertEqual(raisedHand.matchedAlias(for: "highf"), "highfive")
+        XCTAssertNil(raisedHand.matchedAlias(for: "raised hand"))
     }
 
     func testStrongAliasOutranksBroadConceptKeyword() throws {
@@ -76,6 +87,8 @@ final class EmojiSearchTests: XCTestCase {
 
         XCTAssertFalse(results.isEmpty)
         XCTAssertTrue(results.prefix(10).contains(where: { $0.aliases.contains("laughing") }))
+        let laughingResult = try XCTUnwrap(results.first(where: { $0.aliases.contains("laughing") }))
+        XCTAssertEqual(laughingResult.matchedAlias(for: "laughign"), "laughing")
     }
 
     func testSkinToneVariantsAreCollapsedUnlessRequested() throws {
