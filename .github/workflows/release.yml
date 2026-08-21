@@ -171,7 +171,9 @@ jobs:
           VALIDATION_TAP="$(brew --repository spotmoji/validation)"
           mkdir -p "$VALIDATION_TAP/Casks"
           ditto homebrew-tap/Casks/spotmoji.rb "$VALIDATION_TAP/Casks/spotmoji.rb"
-          brew audit --cask --new spotmoji/validation/spotmoji
+          # `--new` enforces Homebrew/core's notability threshold, which does not
+          # apply to casks distributed from a third-party tap.
+          brew audit --cask --strict --online spotmoji/validation/spotmoji
 
       - name: Push Homebrew cask
         shell: bash
