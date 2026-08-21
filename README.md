@@ -14,7 +14,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 
-Spotmoji is a focused, native macOS emoji picker. It indexes the Unicode emoji catalog with Core Spotlight, searches locally, and uses the system pasteboard to put your selection where you were typing.
+Spotmoji is a focused, native macOS emoji picker. It indexes the Unicode emoji catalog with Core Spotlight, understands human searches like `high five`, `coder`, and `face palm`, and uses the system pasteboard to put your selection where you were typing.
 
 <p align="center">
   <img src="docs/images/spotmoji-picker.svg" width="820" alt="Spotmoji picker showing emoji search results for heart">
@@ -62,6 +62,7 @@ macOS asks for Accessibility permission once so Spotmoji can return focus and se
 ## Why Spotmoji?
 
 - **Spotlight first.** Emoji become native searchable Spotlight results.
+- **Human-friendly search.** Common aliases, related concepts, compact shortcodes, plurals, and small typos all work.
 - **Fast keyboard flow.** Search, arrows, Return. No mouse required.
 - **Local and private.** No account, analytics, network requests, or cloud service.
 - **Native macOS.** AppKit, Core Spotlight, and the system emoji font. Nothing web-wrapped.
@@ -93,7 +94,8 @@ Spotlight does not allow third-party apps to embed a live custom picker inside i
 |---|---|
 | AppKit instead of SwiftUI | A non-activating floating panel and precise keyboard focus are central to the experience. |
 | Core Spotlight index | Emoji appear as native system search results without replacing Spotlight. |
-| No external packages | Faster builds, smaller attack surface, and no supply-chain dependency. |
+| No runtime packages | Faster builds, a smaller attack surface, and no runtime supply-chain dependency. |
+| Weighted local search | Names and strong human aliases outrank broad related concepts, while typo correction runs only when an exact search has no results. |
 | Accessibility only for paste | Search and copy work without it. The permission is used only to restore the target and send Command-V. |
 | Public GitHub releases plus a Homebrew tap | The source, signed binaries, and one-command installation stay easy to inspect. |
 
@@ -107,7 +109,13 @@ swift test
 codesign --verify --deep --strict --verbose=2 dist/Spotmoji.app
 ```
 
-The emoji data generator lives in `Tools/generate_emoji_data.swift`. Release signing, notarization, and Homebrew publication are documented in [docs/RELEASING.md](docs/RELEASING.md).
+The emoji catalog generator lives in `Tools/generate_emoji_data.swift`. Human search metadata is checked in as a generated resource so the app stays offline and dependency-free at runtime. Regenerate it from pinned Emojibase and emojilib versions with:
+
+```sh
+./scripts/update-search-data.sh
+```
+
+Third-party data licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Release signing, notarization, and Homebrew publication are documented in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Privacy
 
