@@ -43,10 +43,12 @@ jobs:
         env:
           CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
           : "${CERTIFICATE_BASE64:?Missing DEVELOPER_ID_CERTIFICATE_BASE64}"
           : "${CERTIFICATE_PASSWORD:?Missing DEVELOPER_ID_CERTIFICATE_PASSWORD}"
+          : "${APPLE_TEAM_ID:?Missing APPLE_TEAM_ID repository variable}"
 
           CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/spotmoji-signing.keychain-db"
@@ -56,13 +58,17 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12
+          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "$CERTIFICATE_PASSWORD" -A -f pkcs12
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH"
 
           SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -1)"
           if [[ -z "$SIGNING_IDENTITY" ]]; then
             echo "The certificate secret does not contain a Developer ID Application identity." >&2
+            exit 1
+          fi
+          if [[ "$SIGNING_IDENTITY" != *"($APPLE_TEAM_ID)"* ]]; then
+            echo "The Developer ID certificate does not belong to APPLE_TEAM_ID." >&2
             exit 1
           fi
 
@@ -79,21 +85,24 @@ jobs:
       - name: Notarize and staple
         shell: bash
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          : "${APPLE_ID:?Missing APPLE_ID}"
-          : "${APPLE_APP_SPECIFIC_PASSWORD:?Missing APPLE_APP_SPECIFIC_PASSWORD}"
-          : "${APPLE_TEAM_ID:?Missing APPLE_TEAM_ID repository variable}"
+          : "${ASC_KEY_ID:?Missing APP_STORE_CONNECT_API_KEY_ID}"
+          : "${ASC_ISSUER_ID:?Missing APP_STORE_CONNECT_API_ISSUER_ID}"
+          : "${ASC_PRIVATE_KEY:?Missing APP_STORE_CONNECT_API_PRIVATE_KEY}"
 
           NOTARIZATION_ARCHIVE="$RUNNER_TEMP/Spotmoji-notarization.zip"
+          ASC_KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$ASC_KEY_PATH"
+          chmod 600 "$ASC_KEY_PATH"
           ditto -c -k --sequesterRsrc --keepParent dist/Spotmoji.app "$NOTARIZATION_ARCHIVE"
           xcrun notarytool submit "$NOTARIZATION_ARCHIVE" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
+            --key "$ASC_KEY_PATH" \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
             --wait
           xcrun stapler staple dist/Spotmoji.app
           xcrun stapler validate dist/Spotmoji.app
@@ -108,7 +117,7 @@ jobs:
           SHA256="$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')"
           echo "SHA256=$SHA256" >> "$GITHUB_ENV"
 
-      - name: Publish private source release
+      - name: Publish GitHub release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
