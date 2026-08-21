@@ -95,7 +95,7 @@ Spotlight does not allow third-party apps to embed a live custom picker inside i
 | Core Spotlight index | Emoji appear as native system search results without replacing Spotlight. |
 | No external packages | Faster builds, smaller attack surface, and no supply-chain dependency. |
 | Accessibility only for paste | Search and copy work without it. The permission is used only to restore the target and send Command-V. |
-| Public releases from a separate tap | The app source can remain private while signed binaries stay installable through Homebrew. |
+| Public GitHub releases plus a Homebrew tap | The source, signed binaries, and one-command installation stay easy to inspect. |
 
 ## Development
 
