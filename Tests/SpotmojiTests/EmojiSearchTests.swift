@@ -23,6 +23,11 @@ final class EmojiSearchTests: XCTestCase {
 
     func testEmptySearchHonorsLimit() {
         XCTAssertEqual(EmojiSearch.search("", in: items, limit: 2).count, 2)
+        XCTAssertTrue(EmojiSearch.search("", in: items, limit: 0).isEmpty)
+    }
+
+    func testPunctuationOnlySearchBehavesLikeAnEmptyQuery() {
+        XCTAssertEqual(EmojiSearch.search("!!!", in: items, limit: 2), Array(items.prefix(2)))
     }
 
     func testPluralQueryMatchesSingularEmojiName() {
@@ -35,21 +40,79 @@ final class EmojiSearchTests: XCTestCase {
         XCTAssertEqual(EmojiSearch.search("threads", in: [thread]).first?.emoji, "🧵")
     }
 
-    func testSpotlightItemIncludesPluralKeyword() {
-        let thread = EmojiItem(
-            emoji: "🧵",
-            name: "thread",
-            group: "Activities",
-            subgroup: "arts & crafts"
-        )
-        let searchableItem = EmojiSpotlightIndex.searchableItem(for: thread)
+    func testBundledMetadataCoversEveryEmoji() throws {
+        let bundledItems = try EmojiStore.load()
 
-        XCTAssertEqual(searchableItem.uniqueIdentifier, "emoji:1f9f5")
-        XCTAssertEqual(searchableItem.attributeSet.title, "🧵 thread")
-        XCTAssertEqual(searchableItem.attributeSet.containerTitle, "Spotmoji")
-        XCTAssertEqual(searchableItem.attributeSet.kind, "Emoji")
-        XCTAssertTrue(searchableItem.attributeSet.keywords?.contains("Spotmoji") == true)
-        XCTAssertTrue(searchableItem.attributeSet.keywords?.contains("threads") == true)
+        XCTAssertEqual(bundledItems.count, 3_944)
+        XCTAssertTrue(bundledItems.allSatisfy { !$0.aliases.isEmpty || !$0.keywords.isEmpty })
+    }
+
+    func testHighFiveHumanPhrasesRankRaisedAndFoldedHands() throws {
+        let bundledItems = try EmojiStore.load()
+
+        for query in ["high five", "high 5", "highfive"] {
+            let results = EmojiSearch.search(query, in: bundledItems)
+            XCTAssertEqual(results.first?.emoji, "✋", "Unexpected first result for \(query)")
+            XCTAssertTrue(results.prefix(5).contains(where: { $0.emoji == "🙏" }), query)
+        }
+    }
+
+    func testStrongAliasOutranksBroadConceptKeyword() throws {
+        let results = EmojiSearch.search("party", in: try EmojiStore.load())
+
+        XCTAssertEqual(results.first?.emoji, "🥳")
+    }
+
+    func testCommonHumanAliases() throws {
+        let bundledItems = try EmojiStore.load()
+
+        XCTAssertEqual(EmojiSearch.search("coder", in: bundledItems).first?.emoji, "🧑‍💻")
+        XCTAssertEqual(EmojiSearch.search("face palm", in: bundledItems).first?.emoji, "🤦")
+        XCTAssertEqual(EmojiSearch.search("facepalm", in: bundledItems).first?.emoji, "🤦")
+    }
+
+    func testTypoToleranceHandlesTransposedLetters() throws {
+        let results = EmojiSearch.search("laughign", in: try EmojiStore.load())
+
+        XCTAssertFalse(results.isEmpty)
+        XCTAssertTrue(results.prefix(10).contains(where: { $0.aliases.contains("laughing") }))
+    }
+
+    func testSkinToneVariantsAreCollapsedUnlessRequested() throws {
+        let bundledItems = try EmojiStore.load()
+        let generalResults = EmojiSearch.search("high five", in: bundledItems)
+        let raisedHands = generalResults.filter { $0.skinToneBaseName == "raised hand" }
+
+        XCTAssertEqual(raisedHands.map(\.emoji), ["✋"])
+        XCTAssertEqual(
+            EmojiSearch.search("raised hand medium skin tone", in: bundledItems).first?.emoji,
+            "✋🏽"
+        )
+    }
+
+    func testSpotlightItemIncludesPluralAndSearchMetadata() throws {
+        let bundledItems = try EmojiStore.load()
+        let thread = try XCTUnwrap(bundledItems.first(where: { $0.emoji == "🧵" }))
+        let raisedHand = try XCTUnwrap(bundledItems.first(where: { $0.emoji == "✋" }))
+        let threadItem = EmojiSpotlightIndex.searchableItem(for: thread)
+        let raisedHandItem = EmojiSpotlightIndex.searchableItem(for: raisedHand)
+
+        XCTAssertEqual(threadItem.uniqueIdentifier, "emoji:1f9f5")
+        XCTAssertEqual(threadItem.attributeSet.title, "🧵 thread")
+        XCTAssertEqual(threadItem.attributeSet.containerTitle, "Spotmoji")
+        XCTAssertEqual(threadItem.attributeSet.kind, "Emoji")
+        XCTAssertTrue(threadItem.attributeSet.keywords?.contains("Spotmoji") == true)
+        XCTAssertTrue(threadItem.attributeSet.keywords?.contains("threads") == true)
+        XCTAssertTrue(raisedHandItem.attributeSet.keywords?.contains("high five") == true)
+        XCTAssertTrue(raisedHandItem.attributeSet.keywords?.contains("5") == true)
+    }
+
+    func testSpotlightIndexOmitsSkinToneDuplicates() throws {
+        let bundledItems = try EmojiStore.load()
+        let indexedItems = EmojiSpotlightIndex.itemsForIndexing(bundledItems)
+
+        XCTAssertFalse(indexedItems.contains(where: \.isSkinToneVariant))
+        XCTAssertEqual(indexedItems.count, bundledItems.filter { !$0.isSkinToneVariant }.count)
     }
 
     @MainActor

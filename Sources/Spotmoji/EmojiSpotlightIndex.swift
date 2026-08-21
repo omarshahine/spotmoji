@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 enum EmojiSpotlightIndex {
     private static let domainIdentifier = "emoji"
     private static let indexedVersionKey = "EmojiSpotlightIndex.indexedVersion"
-    private static let schemaVersion = 2
+    private static let schemaVersion = 4
 
     static func identifier(for item: EmojiItem) -> String {
         let scalars = item.emoji.unicodeScalars
@@ -34,6 +34,8 @@ enum EmojiSpotlightIndex {
             ["Spotmoji", "emoji", item.emoji, item.name, item.shortcode, item.group, item.subgroup]
                 + nameTerms
                 + pluralTerms
+                + item.aliases
+                + item.keywords
         ))
         attributes.textContent = attributes.keywords?.joined(separator: " ")
 
@@ -52,10 +54,14 @@ enum EmojiSpotlightIndex {
         let indexedVersion = "\(schemaVersion)-\(items.count)"
         guard UserDefaults.standard.string(forKey: indexedVersionKey) != indexedVersion else { return }
 
-        let searchableItems = items.map(searchableItem(for:))
+        let searchableItems = itemsForIndexing(items).map(searchableItem(for:))
         CSSearchableIndex.default().indexSearchableItems(searchableItems) { error in
             guard error == nil else { return }
             UserDefaults.standard.set(indexedVersion, forKey: indexedVersionKey)
         }
+    }
+
+    static func itemsForIndexing(_ items: [EmojiItem]) -> [EmojiItem] {
+        items.filter { !$0.isSkinToneVariant }
     }
 }
