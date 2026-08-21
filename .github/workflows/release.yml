@@ -175,7 +175,9 @@ jobs:
         run: |
           set -euo pipefail
           PREVIOUS_TAG="$(
-            gh release list --repo "$GITHUB_REPOSITORY" --limit 20 --json tagName --jq '.[].tagName' |
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
+              --json tagName,isDraft,isPrerelease \
+              --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' |
               awk -v current="$GITHUB_REF_NAME" '$0 != current { print; exit }'
           )"
           if [[ -z "$PREVIOUS_TAG" ]]; then

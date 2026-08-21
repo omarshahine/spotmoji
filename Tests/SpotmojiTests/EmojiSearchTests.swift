@@ -87,6 +87,8 @@ final class EmojiSearchTests: XCTestCase {
 
         XCTAssertFalse(results.isEmpty)
         XCTAssertTrue(results.prefix(10).contains(where: { $0.aliases.contains("laughing") }))
+        let laughingResult = try XCTUnwrap(results.first(where: { $0.aliases.contains("laughing") }))
+        XCTAssertEqual(laughingResult.matchedAlias(for: "laughign"), "laughing")
     }
 
     func testSkinToneVariantsAreCollapsedUnlessRequested() throws {

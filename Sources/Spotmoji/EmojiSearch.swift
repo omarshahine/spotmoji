@@ -107,16 +107,13 @@ enum EmojiSearch {
         let correctedTerms = query.split(separator: " ").map(String.init).map { term -> String in
             if vocabulary[term] != nil { return term }
 
-            let allowedDistance: Int
-            switch term.count {
-            case 0...3: return term
-            case 4...7: allowedDistance = 1
-            default: allowedDistance = 2
+            guard let allowedDistance = EmojiSearchText.allowedEditDistance(for: term) else {
+                return term
             }
 
             let best = vocabulary.compactMap { candidate, weight -> (String, Int, Int)? in
                 guard abs(candidate.count - term.count) <= allowedDistance else { return nil }
-                let distance = editDistance(term, candidate, limit: allowedDistance)
+                let distance = EmojiSearchText.editDistance(term, candidate, limit: allowedDistance)
                 return distance <= allowedDistance ? (candidate, distance, weight) : nil
             }.min {
                 if $0.1 != $1.1 { return $0.1 < $1.1 }
@@ -135,38 +132,4 @@ enum EmojiSearch {
         value.count > 3 && value.hasSuffix("s") ? String(value.dropLast()) : value
     }
 
-    // Optimal-string-alignment distance catches both typos and adjacent transpositions.
-    private static func editDistance(_ lhs: String, _ rhs: String, limit: Int) -> Int {
-        let left = Array(lhs)
-        let right = Array(rhs)
-        guard abs(left.count - right.count) <= limit else { return limit + 1 }
-
-        var previousPrevious = Array(0...right.count)
-        var previous = previousPrevious
-        for leftIndex in 1...left.count {
-            var current = Array(repeating: 0, count: right.count + 1)
-            current[0] = leftIndex
-            var rowMinimum = current[0]
-            for rightIndex in 1...right.count {
-                let substitution = previous[rightIndex - 1]
-                    + (left[leftIndex - 1] == right[rightIndex - 1] ? 0 : 1)
-                current[rightIndex] = min(
-                    previous[rightIndex] + 1,
-                    current[rightIndex - 1] + 1,
-                    substitution
-                )
-                if leftIndex > 1,
-                   rightIndex > 1,
-                   left[leftIndex - 1] == right[rightIndex - 2],
-                   left[leftIndex - 2] == right[rightIndex - 1] {
-                    current[rightIndex] = min(current[rightIndex], previousPrevious[rightIndex - 2] + 1)
-                }
-                rowMinimum = min(rowMinimum, current[rightIndex])
-            }
-            if rowMinimum > limit { return limit + 1 }
-            previousPrevious = previous
-            previous = current
-        }
-        return previous[right.count]
-    }
 }
