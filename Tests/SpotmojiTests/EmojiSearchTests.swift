@@ -159,6 +159,20 @@ final class EmojiSearchTests: XCTestCase {
     }
 
     @MainActor
+    func testAutomaticProbeUsesSparkleBackgroundUpdateCycle() {
+        let suiteName = "SpotmojiTests.BackgroundUpdate.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let updater = UpdateCheckerSpy()
+        let manager = UpdateManager(defaults: defaults, updater: updater)
+
+        manager.probeForUpdateIfNeeded(now: Date(timeIntervalSince1970: 1_000_000))
+
+        XCTAssertEqual(updater.backgroundChecks, 1)
+        XCTAssertEqual(updater.userInitiatedChecks, 0)
+    }
+
+    @MainActor
     func testTargetDetectorRejectsUtilitiesAndUnidentifiedProcesses() {
         XCTAssertFalse(TargetAppDetector.isEligible(
             bundleIdentifier: "app.cotypist.Cotypist",
@@ -175,5 +189,20 @@ final class EmojiSearchTests: XCTestCase {
             localizedName: "System Settings",
             activationPolicy: .regular
         ))
+    }
+}
+
+@MainActor
+private final class UpdateCheckerSpy: UpdateChecking {
+    var sessionInProgress = false
+    var backgroundChecks = 0
+    var userInitiatedChecks = 0
+
+    func checkForUpdatesInBackground() {
+        backgroundChecks += 1
+    }
+
+    func checkForUpdates() {
+        userInitiatedChecks += 1
     }
 }

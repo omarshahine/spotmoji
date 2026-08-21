@@ -65,7 +65,7 @@ macOS asks for Accessibility permission once so Spotmoji can return focus and se
 - **Human-friendly search.** Common aliases, related concepts, compact shortcodes, plurals, and small typos all work.
 - **Fast keyboard flow.** Search, arrows, Return. No mouse required.
 - **Local and private.** No account, analytics, or cloud service. Search terms never leave your Mac.
-- **Secure self-updates.** The picker quietly checks the signed release feed and shows an update button when a new version is available.
+- **Secure self-updates.** When the picker is open, Spotmoji periodically checks the signed release feed. Sparkle presents its native update window when a new version is available, and the picker keeps an update button for reopening it.
 - **Native macOS.** AppKit, Core Spotlight, and the system emoji font. Nothing web-wrapped.
 - **Small footprint.** One native app, Sparkle, and the bundled Unicode catalog.
 

@@ -2,6 +2,15 @@ import Foundation
 import Sparkle
 
 @MainActor
+protocol UpdateChecking: AnyObject {
+    var sessionInProgress: Bool { get }
+    func checkForUpdatesInBackground()
+    func checkForUpdates()
+}
+
+extension SPUUpdater: UpdateChecking {}
+
+@MainActor
 final class UpdateManager: NSObject, SPUUpdaterDelegate {
     static let probeInterval: TimeInterval = 6 * 60 * 60
 
@@ -9,6 +18,7 @@ final class UpdateManager: NSObject, SPUUpdaterDelegate {
 
     private static let lastProbeDateKey = "SpotmojiLastUpdateProbeDate"
     private let defaults: UserDefaults
+    private let injectedUpdater: (any UpdateChecking)?
     private var hasStarted = false
     private var probeStartedAt: Date?
 
@@ -18,23 +28,31 @@ final class UpdateManager: NSObject, SPUUpdaterDelegate {
         userDriverDelegate: nil
     )
 
-    init(defaults: UserDefaults = .standard) {
+    private var updater: any UpdateChecking {
+        injectedUpdater ?? controller.updater
+    }
+
+    init(
+        defaults: UserDefaults = .standard,
+        updater: (any UpdateChecking)? = nil
+    ) {
         self.defaults = defaults
+        self.injectedUpdater = updater
         super.init()
     }
 
     func probeForUpdateIfNeeded(now: Date = Date()) {
         startIfNeeded()
 
-        guard !controller.updater.sessionInProgress else { return }
+        guard !updater.sessionInProgress else { return }
         guard beginProbeIfNeeded(now: now) else { return }
 
-        controller.updater.checkForUpdateInformation()
+        updater.checkForUpdatesInBackground()
     }
 
     func checkForUpdates() {
         startIfNeeded()
-        controller.updater.checkForUpdates()
+        updater.checkForUpdates()
     }
 
     static func shouldProbe(
@@ -78,7 +96,9 @@ final class UpdateManager: NSObject, SPUUpdaterDelegate {
 
     private func startIfNeeded() {
         guard !hasStarted else { return }
-        _ = controller
+        if injectedUpdater == nil {
+            _ = controller
+        }
         hasStarted = true
     }
 }
