@@ -5,8 +5,43 @@ final class PickerPanel: NSPanel {
     override var canBecomeMain: Bool { true }
 }
 
+struct PickerDismissalGate {
+    enum Interaction {
+        case idle
+        case choosingEmoji
+        case presentingUpdate
+    }
+
+    private(set) var interaction: Interaction = .idle
+    private(set) var hasDismissed = false
+
+    mutating func reset() {
+        interaction = .idle
+        hasDismissed = false
+    }
+
+    mutating func beginChoosingEmoji() {
+        interaction = .choosingEmoji
+    }
+
+    mutating func beginPresentingUpdate() {
+        interaction = .presentingUpdate
+    }
+
+    mutating func finishTemporaryInteraction() {
+        interaction = .idle
+    }
+
+    mutating func claimDismissal(automatically: Bool) -> Bool {
+        guard !hasDismissed else { return false }
+        guard !automatically || interaction == .idle else { return false }
+        hasDismissed = true
+        return true
+    }
+}
+
 @MainActor
-final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, NSTableViewDataSource, NSTableViewDelegate {
+final class PickerWindowController: NSWindowController, NSWindowDelegate, NSSearchFieldDelegate, NSTableViewDataSource, NSTableViewDelegate {
     private let allItems: [EmojiItem]
     private var filteredItems: [EmojiItem]
     private let onChoose: (EmojiItem) -> Void
@@ -17,6 +52,10 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
     private let tableView = NSTableView()
     private let statusLabel = NSTextField(labelWithString: "")
     private let updateButton = NSButton()
+    private var dismissalGate = PickerDismissalGate()
+    // NSEvent owns this opaque token and removeMonitor is safe during teardown.
+    // The controller otherwise accesses it only on the main actor.
+    nonisolated(unsafe) private var keyDownMonitor: Any?
 
     init(
         items: [EmojiItem],
@@ -53,14 +92,36 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
         panel.isReleasedWhenClosed = false
 
         super.init(window: panel)
+        panel.delegate = self
         configureUI()
+        keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let isCommandW = modifiers.contains(.command)
+                && event.charactersIgnoringModifiers?.lowercased() == "w"
+            guard
+                event.keyCode == 53 || isCommandW,
+                let self,
+                self.window?.isVisible == true,
+                self.window?.isKeyWindow == true
+            else { return event }
+
+            self.dismissPicker()
+            return nil
+        }
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
+    deinit {
+        if let keyDownMonitor {
+            NSEvent.removeMonitor(keyDownMonitor)
+        }
+    }
+
     func showPicker(searchQuery: String = "") {
         guard let window else { return }
+        dismissalGate.reset()
         searchField.stringValue = searchQuery
         filteredItems = EmojiSearch.search(searchQuery, in: allItems)
         tableView.reloadData()
@@ -81,6 +142,28 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
 
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(searchField)
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        dismissalGate.finishTemporaryInteraction()
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        guard dismissalGate.interaction == .idle else { return }
+
+        // AppKit sends the resign notification while it is still transferring
+        // focus. Waiting one run-loop turn lets us distinguish a click outside
+        // Spotmoji from Sparkle presenting one of its own windows.
+        DispatchQueue.main.async { [weak self] in
+            guard
+                let self,
+                let pickerWindow = self.window,
+                pickerWindow.isVisible,
+                !NSApp.windows.contains(where: { $0 !== pickerWindow && $0.isVisible })
+            else { return }
+
+            self.dismissPicker(automatically: true)
+        }
     }
 
     func showMessage(_ message: String) {
@@ -215,7 +298,7 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
             chooseSelected()
             return true
         case #selector(NSResponder.cancelOperation(_:)):
-            onCancel()
+            dismissPicker()
             return true
         default:
             return false
@@ -274,11 +357,23 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
     @objc private func chooseSelected() {
         let row = tableView.selectedRow
         guard filteredItems.indices.contains(row) else { return }
+        dismissalGate.beginChoosingEmoji()
         onChoose(filteredItems[row])
     }
 
     @objc private func checkForUpdates() {
+        dismissalGate.beginPresentingUpdate()
         onCheckForUpdates()
+        DispatchQueue.main.async { [weak self] in
+            guard self?.window?.isKeyWindow == true else { return }
+            self?.dismissalGate.finishTemporaryInteraction()
+        }
+    }
+
+    private func dismissPicker(automatically: Bool = false) {
+        guard dismissalGate.claimDismissal(automatically: automatically) else { return }
+        window?.orderOut(nil)
+        onCancel()
     }
 
     private func select(row: Int) {

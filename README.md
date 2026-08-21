@@ -57,6 +57,8 @@ Spotmoji opens invisibly, copies the emoji, returns focus to the app you were us
 2. Search by name, shortcode, group, or related term.
 3. Use the arrow keys and press <kbd>Return</kbd> to paste.
 
+Press <kbd>Escape</kbd> or <kbd>Command</kbd> + <kbd>W</kbd>, or click outside the picker, to dismiss it.
+
 macOS asks for Accessibility permission once so Spotmoji can return focus and send the paste command. If permission is not granted, the selected emoji is still copied.
 
 ## Why Spotmoji?

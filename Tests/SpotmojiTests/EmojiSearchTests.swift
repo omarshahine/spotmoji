@@ -190,6 +190,32 @@ final class EmojiSearchTests: XCTestCase {
             activationPolicy: .regular
         ))
     }
+
+    func testPickerDismissalGateDismissesOnlyOnce() {
+        var gate = PickerDismissalGate()
+
+        XCTAssertTrue(gate.claimDismissal(automatically: false))
+        XCTAssertFalse(gate.claimDismissal(automatically: false))
+
+        gate.reset()
+
+        XCTAssertTrue(gate.claimDismissal(automatically: true))
+    }
+
+    func testPickerDismissalGateProtectsPasteAndUpdateFocusChanges() {
+        var gate = PickerDismissalGate()
+
+        gate.beginChoosingEmoji()
+        XCTAssertFalse(gate.claimDismissal(automatically: true))
+        XCTAssertTrue(gate.claimDismissal(automatically: false))
+
+        gate.reset()
+        gate.beginPresentingUpdate()
+        XCTAssertFalse(gate.claimDismissal(automatically: true))
+
+        gate.finishTemporaryInteraction()
+        XCTAssertTrue(gate.claimDismissal(automatically: true))
+    }
 }
 
 @MainActor
