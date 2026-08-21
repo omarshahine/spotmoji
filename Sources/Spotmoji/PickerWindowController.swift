@@ -241,17 +241,20 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
         name.translatesAutoresizingMaskIntoConstraints = false
         name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let shortcode = NSTextField(labelWithString: ":\(item.shortcode):")
-        shortcode.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        shortcode.textColor = .tertiaryLabelColor
-        shortcode.alignment = .right
-        shortcode.lineBreakMode = .byTruncatingMiddle
-        shortcode.translatesAutoresizingMaskIntoConstraints = false
-        shortcode.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        let matchedAlias = item.matchedAlias(for: searchField.stringValue)
+        let detail = NSTextField(labelWithString: matchedAlias ?? ":\(item.shortcode):")
+        detail.font = matchedAlias == nil
+            ? .monospacedSystemFont(ofSize: 12, weight: .regular)
+            : .systemFont(ofSize: 12, weight: .regular)
+        detail.textColor = matchedAlias == nil ? .tertiaryLabelColor : .secondaryLabelColor
+        detail.alignment = .right
+        detail.lineBreakMode = .byTruncatingMiddle
+        detail.translatesAutoresizingMaskIntoConstraints = false
+        detail.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
 
         cell.addSubview(emoji)
         cell.addSubview(name)
-        cell.addSubview(shortcode)
+        cell.addSubview(detail)
         NSLayoutConstraint.activate([
             emoji.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 12),
             emoji.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
@@ -259,11 +262,11 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
 
             name.leadingAnchor.constraint(equalTo: emoji.trailingAnchor, constant: 12),
             name.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            name.trailingAnchor.constraint(lessThanOrEqualTo: shortcode.leadingAnchor, constant: -12),
+            name.trailingAnchor.constraint(lessThanOrEqualTo: detail.leadingAnchor, constant: -12),
 
-            shortcode.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -14),
-            shortcode.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            shortcode.widthAnchor.constraint(lessThanOrEqualToConstant: 220),
+            detail.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -14),
+            detail.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            detail.widthAnchor.constraint(lessThanOrEqualToConstant: 220),
         ])
         return cell
     }

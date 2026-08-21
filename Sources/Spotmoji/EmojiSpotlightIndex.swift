@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 enum EmojiSpotlightIndex {
     private static let domainIdentifier = "emoji"
     private static let indexedVersionKey = "EmojiSpotlightIndex.indexedVersion"
-    private static let schemaVersion = 4
+    private static let schemaVersion = 5
 
     static func identifier(for item: EmojiItem) -> String {
         let scalars = item.emoji.unicodeScalars

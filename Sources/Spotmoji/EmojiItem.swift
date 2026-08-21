@@ -96,6 +96,33 @@ struct EmojiItem: Decodable, Equatable, Sendable {
         Self.shortcode(for: name)
     }
 
+    func matchedAlias(for rawQuery: String) -> String? {
+        let query = EmojiSearchText.normalize(rawQuery)
+        guard !query.isEmpty else { return nil }
+
+        let compactQuery = EmojiSearchText.compact(query)
+        let normalizedName = EmojiSearchText.normalize(name)
+        let candidates = aliases.compactMap { alias -> (alias: String, score: Int)? in
+            let normalizedAlias = EmojiSearchText.normalize(alias)
+            guard !normalizedAlias.isEmpty, normalizedAlias != normalizedName else { return nil }
+
+            let compactAlias = EmojiSearchText.compact(normalizedAlias)
+            if normalizedAlias == query { return (alias, 0) }
+            if compactAlias == compactQuery { return (alias, 1) }
+            if normalizedAlias.hasPrefix(query) { return (alias, 2) }
+            if compactAlias.hasPrefix(compactQuery) { return (alias, 3) }
+            if normalizedAlias.contains(query) { return (alias, 4) }
+            if compactAlias.contains(compactQuery) { return (alias, 5) }
+            return nil
+        }
+
+        return candidates.min {
+            if $0.score != $1.score { return $0.score < $1.score }
+            if $0.alias.count != $1.alias.count { return $0.alias.count < $1.alias.count }
+            return $0.alias < $1.alias
+        }?.alias
+    }
+
     private static func shortcode(for name: String) -> String {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
         let words = name
