@@ -1,0 +1,186 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Sign, notarize, and publish
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out Spotmoji
+        uses: actions/checkout@v7
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must look like v1.2.3" >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/release/Spotmoji-$VERSION.zip" >> "$GITHUB_ENV"
+          echo "TAP_TAG=spotmoji-v$VERSION" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: swift test
+
+      - name: Import Developer ID certificate
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CERTIFICATE_BASE64:?Missing DEVELOPER_ID_CERTIFICATE_BASE64}"
+          : "${CERTIFICATE_PASSWORD:?Missing DEVELOPER_ID_CERTIFICATE_PASSWORD}"
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/spotmoji-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
+
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -1)"
+          if [[ -z "$SIGNING_IDENTITY" ]]; then
+            echo "The certificate secret does not contain a Developer ID Application identity." >&2
+            exit 1
+          fi
+
+          echo "CODESIGN_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Build signed app
+        shell: bash
+        env:
+          APP_VERSION: ${{ env.VERSION }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: ./scripts/build-app.sh
+
+      - name: Notarize and staple
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_ID:?Missing APPLE_ID}"
+          : "${APPLE_APP_SPECIFIC_PASSWORD:?Missing APPLE_APP_SPECIFIC_PASSWORD}"
+          : "${APPLE_TEAM_ID:?Missing APPLE_TEAM_ID repository variable}"
+
+          NOTARIZATION_ARCHIVE="$RUNNER_TEMP/Spotmoji-notarization.zip"
+          ditto -c -k --sequesterRsrc --keepParent dist/Spotmoji.app "$NOTARIZATION_ARCHIVE"
+          xcrun notarytool submit "$NOTARIZATION_ARCHIVE" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple dist/Spotmoji.app
+          xcrun stapler validate dist/Spotmoji.app
+          spctl --assess --type execute --verbose=2 dist/Spotmoji.app
+
+      - name: Package notarized app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          ditto -c -k --sequesterRsrc --keepParent dist/Spotmoji.app "$ARCHIVE_PATH"
+          SHA256="$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')"
+          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
+
+      - name: Publish private source release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$ARCHIVE_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --generate-notes \
+              --title "Spotmoji $VERSION"
+          fi
+
+      - name: Check out public Homebrew tap
+        uses: actions/checkout@v7
+        with:
+          repository: omarshahine/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Publish public Homebrew release asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${GH_TOKEN:?Missing HOMEBREW_TAP_TOKEN}"
+          if gh release view "$TAP_TAG" --repo omarshahine/homebrew-tap >/dev/null 2>&1; then
+            gh release upload "$TAP_TAG" "$ARCHIVE_PATH" --repo omarshahine/homebrew-tap --clobber
+          else
+            gh release create "$TAP_TAG" "$ARCHIVE_PATH" \
+              --repo omarshahine/homebrew-tap \
+              --target main \
+              --title "Spotmoji $VERSION" \
+              --notes "Signed and notarized Spotmoji $VERSION for Homebrew distribution."
+          fi
+
+      - name: Update Homebrew cask
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p homebrew-tap/Casks
+          sed \
+            -e "s/__VERSION__/$VERSION/g" \
+            -e "s/__SHA256__/$SHA256/g" \
+            packaging/spotmoji.rb.template > homebrew-tap/Casks/spotmoji.rb
+          brew style homebrew-tap/Casks/spotmoji.rb
+          brew tap-new --no-git spotmoji/validation
+          VALIDATION_TAP="$(brew --repository spotmoji/validation)"
+          mkdir -p "$VALIDATION_TAP/Casks"
+          ditto homebrew-tap/Casks/spotmoji.rb "$VALIDATION_TAP/Casks/spotmoji.rb"
+          brew audit --cask --new spotmoji/validation/spotmoji
+
+      - name: Push Homebrew cask
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C homebrew-tap config user.name "Spotmoji Release Bot"
+          git -C homebrew-tap config user.email "10343873+omarshahine@users.noreply.github.com"
+          git -C homebrew-tap add -- Casks/spotmoji.rb
+          if git -C homebrew-tap diff --cached --quiet; then
+            exit 0
+          fi
+          git -C homebrew-tap commit -m "spotmoji $VERSION"
+          git -C homebrew-tap push origin HEAD:main
+
+      - name: Remove temporary signing keychain
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${SIGNING_KEYCHAIN_PATH:-}" && -e "$SIGNING_KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$SIGNING_KEYCHAIN_PATH"
+          fi

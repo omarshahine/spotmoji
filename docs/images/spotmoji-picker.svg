@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" role="img" aria-labelledby="title desc">
+  <title id="title">Spotmoji emoji picker</title>
+  <desc id="desc">A native macOS search panel showing heart emoji results.</desc>
+  <defs>
+    <linearGradient id="desktop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9e3ff"/>
+      <stop offset="1" stop-color="#dfe8f7"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fcfcfd" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#f2f2f5" stop-opacity="0.92"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#242424" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <rect width="1000" height="600" rx="36" fill="url(#desktop)"/>
+  <circle cx="140" cy="80" r="170" fill="#ffffff" opacity="0.28"/>
+  <circle cx="900" cy="540" r="240" fill="#7254c7" opacity="0.08"/>
+  <g filter="url(#shadow)">
+    <rect x="160" y="70" width="680" height="460" rx="22" fill="url(#panel)" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  <rect x="184" y="94" width="632" height="54" rx="12" fill="#ffffff" stroke="#d9d9df"/>
+  <circle cx="215" cy="121" r="10" fill="none" stroke="#7a7a82" stroke-width="3"/>
+  <path d="M222 128l9 9" stroke="#7a7a82" stroke-width="3" stroke-linecap="round"/>
+  <text x="250" y="130" fill="#26262a" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="23" font-weight="600">heart</text>
+  <line x1="160" y1="164" x2="840" y2="164" stroke="#d9d9df"/>
+  <rect x="176" y="179" width="648" height="62" rx="12" fill="#7254c7" opacity="0.14"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="204" y="221" font-size="36">❤️</text>
+    <text x="264" y="216" fill="#26262a" font-size="20" font-weight="600">red heart</text>
+    <text x="664" y="215" fill="#85858c" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">:red_heart:</text>
+    <text x="204" y="291" font-size="36">🩷</text>
+    <text x="264" y="286" fill="#26262a" font-size="20" font-weight="600">pink heart</text>
+    <text x="658" y="285" fill="#85858c" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">:pink_heart:</text>
+    <text x="204" y="361" font-size="36">💜</text>
+    <text x="264" y="356" fill="#26262a" font-size="20" font-weight="600">purple heart</text>
+    <text x="638" y="355" fill="#85858c" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">:purple_heart:</text>
+    <text x="204" y="431" font-size="36">💖</text>
+    <text x="264" y="426" fill="#26262a" font-size="20" font-weight="600">sparkling heart</text>
+    <text x="615" y="425" fill="#85858c" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">:sparkling_heart:</text>
+    <text x="500" y="500" fill="#74747c" text-anchor="middle" font-size="14">↑↓ navigate   ↩ paste   esc close</text>
+  </g>
+</svg>

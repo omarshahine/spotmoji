@@ -1,0 +1,17 @@
+/.build/
+/.swiftpm/
+/dist/
+/release/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+.DS_Store
+.env
+.env.*
+!.env.example
+*.p12
+*.cer
+*.provisionprofile
+WORKLOG.md

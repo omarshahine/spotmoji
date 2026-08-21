@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    (() => {
+      const param = new URLSearchParams(window.location.search).get("scoutTheme");
+      const theme =
+        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <title>Spotmoji - Emoji at the speed of thought</title>
+  <meta name="description" content="A fast, native macOS emoji picker built for Spotlight. Search locally and paste back into the app you were using.">
+  <meta name="author" content="Omar Shahine">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://omarknows.app/spotmoji/">
+  <meta property="og:title" content="Spotmoji - Emoji at the speed of thought">
+  <meta property="og:description" content="A fast, native macOS emoji picker built for Spotlight.">
+  <meta property="og:site_name" content="OmarKnows">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://omarknows.app/spotmoji/">
+  <link rel="icon" href="assets/spotmoji-icon.png">
+  <style>
+    :root {
+      color-scheme: light;
+      --cp-bg: #f7f4ef;
+      --cp-bg-elevated: #fcfbf8;
+      --cp-surface: #ffffff;
+      --cp-surface-soft: #f5f5f5;
+      --cp-border: #dedede;
+      --cp-border-strong: #919191;
+      --cp-text: #242424;
+      --cp-text-muted: #5c5c5c;
+      --cp-text-soft: #6f6f6f;
+      --cp-accent: #b11f4b;
+      --cp-accent-hover: #9a1a41;
+      --cp-accent-soft: rgba(177, 31, 75, 0.08);
+      --cp-accent-fg: #ffffff;
+      --cp-success: #16a34a;
+      --cp-danger: #dc2626;
+      --cp-warning: #f59e0b;
+      --cp-link: #0078d4;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+      --cp-overlay: rgba(255, 255, 255, 0.8);
+      --cp-panel: rgba(255, 255, 255, 0.86);
+      --cp-panel-strong: rgba(255, 255, 255, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.55);
+      --cp-highlight: rgba(177, 31, 75, 0.12);
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --cp-bg: #3d3b3a;
+      --cp-bg-elevated: #343231;
+      --cp-surface: #292929;
+      --cp-surface-soft: #2e2e2e;
+      --cp-border: #474747;
+      --cp-border-strong: #5f5f5f;
+      --cp-text: #dedede;
+      --cp-text-muted: #919191;
+      --cp-text-soft: #b0b0b0;
+      --cp-accent: #fd8ea1;
+      --cp-accent-hover: #fb7b91;
+      --cp-accent-soft: rgba(253, 142, 161, 0.14);
+      --cp-accent-fg: #1a1a1a;
+      --cp-success: #4ade80;
+      --cp-danger: #f87171;
+      --cp-warning: #fbbf24;
+      --cp-link: #4da6ff;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+      --cp-overlay: rgba(41, 41, 41, 0.88);
+      --cp-panel: rgba(41, 41, 41, 0.72);
+      --cp-panel-strong: rgba(41, 41, 41, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.04);
+      --cp-highlight: rgba(253, 142, 161, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--cp-bg);
+      color: var(--cp-text);
+      font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: var(--cp-link);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .nav {
+      position: sticky;
+      top: 16px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: var(--cp-panel-strong);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      box-shadow: var(--cp-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--cp-text);
+      font-weight: 700;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+
+    .brand img {
+      width: 34px;
+      height: 34px;
+      border-radius: 0.625rem;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      color: var(--cp-text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .nav-links a:hover {
+      color: var(--cp-text);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 0.92fr 1.08fr;
+      gap: 64px;
+      align-items: center;
+      min-height: 720px;
+      padding: 100px 0 80px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      color: var(--cp-accent);
+      background: var(--cp-accent-soft);
+      border: 1px solid var(--cp-highlight);
+      border-radius: 0.625rem;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--cp-success);
+      border-radius: 50%;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 640px;
+      margin: 20px 0 20px;
+      font-size: clamp(52px, 7vw, 84px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+    }
+
+    .hero-copy {
+      max-width: 590px;
+      margin-bottom: 28px;
+      color: var(--cp-text-muted);
+      font-size: clamp(19px, 2vw, 23px);
+      line-height: 1.55;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border: 1px solid var(--cp-border-strong);
+      border-radius: 0.625rem;
+      color: var(--cp-text);
+      background: var(--cp-surface);
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform 160ms ease, background 160ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      background: var(--cp-surface-soft);
+    }
+
+    .button.primary {
+      color: var(--cp-accent-fg);
+      background: var(--cp-accent);
+      border-color: var(--cp-accent);
+    }
+
+    .button.primary:hover {
+      background: var(--cp-accent-hover);
+      border-color: var(--cp-accent-hover);
+    }
+
+    .microcopy {
+      color: var(--cp-text-soft);
+      font-size: 14px;
+    }
+
+    .demo-wrap {
+      position: relative;
+      padding: 48px 24px;
+      background: var(--cp-bg-elevated);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .demo-wrap::before,
+    .demo-wrap::after {
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      background: var(--cp-accent-soft);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .demo-wrap::before {
+      top: -150px;
+      right: -110px;
+    }
+
+    .demo-wrap::after {
+      bottom: -190px;
+      left: -120px;
+    }
+
+    .spotlight {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 auto 20px;
+      padding: 12px 16px;
+      background: var(--cp-panel-strong);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      box-shadow: var(--cp-shadow);
+      font-size: 17px;
+    }
+
+    .magnifier {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--cp-text-muted);
+      border-radius: 50%;
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .magnifier::after {
+      position: absolute;
+      right: -6px;
+      bottom: -4px;
+      width: 7px;
+      height: 2px;
+      background: var(--cp-text-muted);
+      border-radius: 0.625rem;
+      content: "";
+      transform: rotate(45deg);
+    }
+
+    .spotlight-token {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      background: var(--cp-accent-soft);
+      border-radius: 0.625rem;
+      font-weight: 700;
+    }
+
+    .spotlight-token img {
+      width: 24px;
+      height: 24px;
+      border-radius: 0.625rem;
+    }
+
+    .picker {
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+      background: var(--cp-panel-strong);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      box-shadow: var(--cp-shadow);
+    }
+
+    .picker-search {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--cp-border);
+    }
+
+    .picker-search input {
+      width: 100%;
+      padding: 10px 12px;
+      color: var(--cp-text);
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      outline: none;
+    }
+
+    .picker-search input:focus {
+      border-color: var(--cp-accent);
+      box-shadow: 0 0 0 3px var(--cp-accent-soft);
+    }
+
+    .result-list {
+      min-height: 264px;
+      padding: 8px;
+    }
+
+    .result {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 58px;
+      padding: 6px 12px;
+      border-radius: 0.625rem;
+    }
+
+    .result:first-child {
+      background: var(--cp-accent-soft);
+    }
+
+    .result-emoji {
+      font-size: 30px;
+      text-align: center;
+    }
+
+    .result-name {
+      overflow: hidden;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-code {
+      max-width: 180px;
+      overflow: hidden;
+      color: var(--cp-text-soft);
+      font-family: Consolas, "Courier New", Courier, monospace;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .picker-footer {
+      padding: 9px 14px;
+      color: var(--cp-text-soft);
+      border-top: 1px solid var(--cp-border);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .section {
+      padding: 96px 0;
+      border-top: 1px solid var(--cp-border);
+    }
+
+    .section-heading {
+      max-width: 680px;
+      margin-bottom: 44px;
+    }
+
+    .kicker {
+      margin-bottom: 10px;
+      color: var(--cp-accent);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin-bottom: 14px;
+      font-size: clamp(36px, 5vw, 56px);
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+    }
+
+    .section-heading p {
+      margin-bottom: 0;
+      color: var(--cp-text-muted);
+      font-size: 19px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      padding: 28px;
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+    }
+
+    .card-icon {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      margin-bottom: 24px;
+      place-items: center;
+      background: var(--cp-accent-soft);
+      border-radius: 0.625rem;
+      font-size: 23px;
+    }
+
+    .card h3 {
+      margin-bottom: 8px;
+      font-size: 21px;
+      letter-spacing: -0.02em;
+    }
+
+    .card p {
+      margin-bottom: 0;
+      color: var(--cp-text-muted);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      counter-reset: steps;
+    }
+
+    .step {
+      position: relative;
+      padding: 28px;
+      background: var(--cp-bg-elevated);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      counter-increment: steps;
+    }
+
+    .step::before {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      margin-bottom: 44px;
+      color: var(--cp-accent-fg);
+      background: var(--cp-accent);
+      border-radius: 50%;
+      content: counter(steps);
+      font-weight: 800;
+      place-items: center;
+    }
+
+    .step h3 {
+      margin-bottom: 8px;
+      font-size: 22px;
+    }
+
+    .step p {
+      margin-bottom: 0;
+      color: var(--cp-text-muted);
+    }
+
+    .install-panel {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 48px;
+      align-items: center;
+      padding: 48px;
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+    }
+
+    .install-panel h2 {
+      font-size: clamp(34px, 4vw, 50px);
+    }
+
+    .install-panel p {
+      margin-bottom: 0;
+      color: var(--cp-text-muted);
+      font-size: 18px;
+    }
+
+    .terminal {
+      overflow: hidden;
+      background: var(--cp-bg-elevated);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+    }
+
+    .terminal-bar {
+      padding: 8px 12px;
+      color: var(--cp-text-soft);
+      border-bottom: 1px solid var(--cp-border);
+      font-size: 12px;
+    }
+
+    .command-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", Courier, monospace;
+    }
+
+    .command-row code {
+      overflow-x: auto;
+      color: var(--cp-text);
+      white-space: nowrap;
+    }
+
+    .copy-button {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      color: var(--cp-text);
+      background: var(--cp-surface-soft);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .copy-button:hover {
+      border-color: var(--cp-border-strong);
+    }
+
+    .trust-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .trust-item {
+      padding: 20px;
+      background: var(--cp-bg-elevated);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+    }
+
+    .trust-item strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .trust-item span {
+      color: var(--cp-text-muted);
+      font-size: 14px;
+    }
+
+    .faq {
+      max-width: 820px;
+    }
+
+    details {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--cp-border);
+    }
+
+    summary {
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    details p {
+      max-width: 720px;
+      margin: 12px 0 0;
+      color: var(--cp-text-muted);
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 40px 0 64px;
+      color: var(--cp-text-soft);
+      border-top: 1px solid var(--cp-border);
+      font-size: 14px;
+    }
+
+    footer a {
+      color: var(--cp-text-muted);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--cp-text);
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 860px) {
+      .nav-links a:not(.github-link) {
+        display: none;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 48px;
+        min-height: auto;
+        padding-top: 88px;
+      }
+
+      .feature-grid,
+      .steps,
+      .trust-row {
+        grid-template-columns: 1fr;
+      }
+
+      .install-panel {
+        grid-template-columns: 1fr;
+        padding: 32px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .shell {
+        width: min(100% - 24px, 1120px);
+      }
+
+      .nav {
+        top: 8px;
+        margin-top: 8px;
+      }
+
+      h1 {
+        font-size: 52px;
+      }
+
+      .hero {
+        padding: 64px 0;
+      }
+
+      .demo-wrap {
+        padding: 26px 12px;
+      }
+
+      .spotlight {
+        font-size: 14px;
+      }
+
+      .result {
+        grid-template-columns: 42px minmax(0, 1fr);
+      }
+
+      .result-code {
+        display: none;
+      }
+
+      .section {
+        padding: 72px 0;
+      }
+
+      .install-panel {
+        padding: 24px;
+      }
+
+      .command-row {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      footer {
+        flex-direction: column;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav shell" aria-label="Primary navigation">
+    <a class="brand" href="#top">
+      <img src="assets/spotmoji-icon.png" alt="">
+      <span>Spotmoji</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a class="github-link" href="https://github.com/omarshahine/spotmoji">GitHub</a>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero shell">
+      <div>
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Native macOS utility</div>
+        <h1>Emoji at the speed of thought.</h1>
+        <p class="hero-copy">Start in Spotlight. Search by name. Press Return. Spotmoji pastes the emoji back into the app you were using.</p>
+        <div class="actions">
+          <a class="button primary" href="#install">Install with Homebrew</a>
+          <a class="button" href="https://github.com/omarshahine/spotmoji">View source</a>
+        </div>
+        <p class="microcopy">Free and open source. No account. No analytics. Everything stays on your Mac.</p>
+      </div>
+
+      <div class="demo-wrap" aria-label="Interactive Spotmoji preview">
+        <div class="spotlight">
+          <span class="magnifier" aria-hidden="true"></span>
+          <span class="spotlight-token"><img src="assets/spotmoji-icon.png" alt="">Spotmoji</span>
+          <span id="spotlight-query">heart</span>
+        </div>
+        <div class="picker">
+          <label class="picker-search">
+            <span class="magnifier" aria-hidden="true"></span>
+            <span class="visually-hidden">Search the preview emoji</span>
+            <input id="emoji-search" type="search" value="heart" placeholder="Search emoji..." autocomplete="off">
+          </label>
+          <div class="result-list" id="emoji-results" aria-live="polite"></div>
+          <div class="picker-footer">↑↓ navigate&nbsp;&nbsp;&nbsp; ↩ paste&nbsp;&nbsp;&nbsp; esc close</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="shell">
+        <div class="section-heading">
+          <p class="kicker">Built for flow</p>
+          <h2>One tiny utility. Zero detours.</h2>
+          <p>Spotmoji turns emoji search into a native keyboard action instead of a trip through menus, categories, and tabs.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">⌕</div>
+            <h3>Spotlight first</h3>
+            <p>Emoji are indexed as native Spotlight results. Search from anywhere without switching launchers.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">⌨️</div>
+            <h3>Keyboard fast</h3>
+            <p>Type a name, move with the arrow keys, and press Return. The selected emoji lands where you were typing.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">🔒</div>
+            <h3>Private by default</h3>
+            <p>The Unicode catalog, search index, and matching all live on your Mac. There is no server to call.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="shell">
+        <div class="section-heading">
+          <p class="kicker">How it works</p>
+          <h2>Three keystrokes from idea to emoji.</h2>
+          <p>Use direct Spotlight results for the fastest path, or open the compact picker when you want to browse.</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <h3>Open Spotlight</h3>
+            <p>Press Command-Space from any app with a text field.</p>
+          </article>
+          <article class="step">
+            <h3>Describe it</h3>
+            <p>Type something like <code>Spotmoji threads</code>, <code>rocket</code>, or <code>happy tears</code>.</p>
+          </article>
+          <article class="step">
+            <h3>Press Return</h3>
+            <p>Spotmoji copies the result, restores your app, pastes, and quietly quits.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="install">
+      <div class="shell">
+        <div class="install-panel">
+          <div>
+            <p class="kicker">Install</p>
+            <h2>One command. Ready everywhere.</h2>
+            <p>The Homebrew release is signed with Developer ID and notarized by Apple. Launch once to build the local Spotlight index and grant Accessibility permission for direct paste.</p>
+          </div>
+          <div>
+            <div class="terminal">
+              <div class="terminal-bar">Terminal</div>
+              <div class="command-row">
+                <code id="install-command">brew install --cask omarshahine/tap/spotmoji</code>
+                <button class="copy-button" id="copy-command" type="button">Copy</button>
+              </div>
+            </div>
+            <div class="trust-row">
+              <div class="trust-item"><strong>Native Swift</strong><span>No web runtime</span></div>
+              <div class="trust-item"><strong>macOS 14+</strong><span>Sonoma or later</span></div>
+              <div class="trust-item"><strong>MIT</strong><span>Free and open source</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell faq">
+        <div class="section-heading">
+          <p class="kicker">Good to know</p>
+          <h2>Small app, clear boundaries.</h2>
+        </div>
+        <details>
+          <summary>Does the picker actually live inside Spotlight?</summary>
+          <p>Individual emoji appear as native Spotlight results and paste directly. macOS does not let third-party apps embed a live custom picker inside the Spotlight window, so the generic Search Spotmoji action opens the compact native picker with your query carried over.</p>
+        </details>
+        <details>
+          <summary>Why does Spotmoji need Accessibility permission?</summary>
+          <p>Only to restore the app you were using and send Command-V. If you do not grant it, selecting an emoji still copies it to the pasteboard.</p>
+        </details>
+        <details>
+          <summary>Does it send my searches anywhere?</summary>
+          <p>No. Search, ranking, the Core Spotlight index, and paste handling all happen locally. Spotmoji has no analytics, account, or network API.</p>
+        </details>
+        <details>
+          <summary>Will it be available in the Mac App Store?</summary>
+          <p>That is planned. Homebrew is the first distribution channel while the direct signing, notarization, and release flow settles.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <span>© 2026 OmarKnows LLC. Built in Seattle.</span>
+    <div class="footer-links">
+      <a href="https://omarknows.app/">OmarKnows</a>
+      <a href="https://github.com/omarshahine/spotmoji">GitHub</a>
+      <a href="https://github.com/omarshahine/spotmoji/blob/main/PRIVACY.md">Privacy</a>
+      <a href="mailto:omar@omarknows.app">Contact</a>
+    </div>
+  </footer>
+
+  <script>
+    const emojiCatalog = [
+      { emoji: "❤️", name: "red heart", code: ":red_heart:", terms: "heart love red emotion" },
+      { emoji: "🩷", name: "pink heart", code: ":pink_heart:", terms: "heart love pink emotion" },
+      { emoji: "💜", name: "purple heart", code: ":purple_heart:", terms: "heart love purple emotion" },
+      { emoji: "💖", name: "sparkling heart", code: ":sparkling_heart:", terms: "heart love sparkle emotion" },
+      { emoji: "🧵", name: "thread", code: ":thread:", terms: "thread threads sewing craft" },
+      { emoji: "🚀", name: "rocket", code: ":rocket:", terms: "rocket launch ship space" },
+      { emoji: "😂", name: "face with tears of joy", code: ":joy:", terms: "happy tears laugh joy face" },
+      { emoji: "👍", name: "thumbs up", code: ":thumbs_up:", terms: "thumb good yes approve" },
+      { emoji: "🎉", name: "party popper", code: ":party_popper:", terms: "party celebration confetti" }
+    ];
+
+    const searchInput = document.querySelector("#emoji-search");
+    const results = document.querySelector("#emoji-results");
+    const spotlightQuery = document.querySelector("#spotlight-query");
+
+    function renderResults() {
+      const query = searchInput.value.trim().toLowerCase();
+      spotlightQuery.textContent = query || "emoji";
+      const matches = emojiCatalog
+        .filter((item) => !query || `${item.name} ${item.code} ${item.terms}`.includes(query))
+        .slice(0, 4);
+
+      results.replaceChildren();
+      const visible = matches.length ? matches : emojiCatalog.slice(0, 4);
+      visible.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "result";
+
+        const emoji = document.createElement("span");
+        emoji.className = "result-emoji";
+        emoji.textContent = item.emoji;
+
+        const name = document.createElement("span");
+        name.className = "result-name";
+        name.textContent = item.name;
+
+        const code = document.createElement("span");
+        code.className = "result-code";
+        code.textContent = item.code;
+
+        row.append(emoji, name, code);
+        results.append(row);
+      });
+    }
+
+    searchInput.addEventListener("input", renderResults);
+    renderResults();
+
+    document.querySelector("#copy-command").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      try {
+        await navigator.clipboard.writeText(document.querySelector("#install-command").textContent);
+        button.textContent = "Copied";
+        window.setTimeout(() => { button.textContent = "Copy"; }, 1600);
+      } catch {
+        button.textContent = "Select command";
+      }
+    });
+  </script>
+</body>
+</html>

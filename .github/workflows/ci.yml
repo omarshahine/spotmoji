@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and package
+    runs-on: macos-26
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out Spotmoji
+        uses: actions/checkout@v7
+
+      - name: Test
+        run: swift test
+
+      - name: Build app bundle
+        run: ./scripts/build-app.sh
+
+      - name: Validate app bundle
+        run: |
+          plutil -lint dist/Spotmoji.app/Contents/Info.plist
+          codesign --verify --deep --strict --verbose=2 dist/Spotmoji.app
