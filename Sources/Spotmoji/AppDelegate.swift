@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var awaitingInitialSpotlightActivity = false
     private var pendingSpotlightQuery: String?
     private var pendingSpotlightItemIdentifier: String?
+    private let updateManager = UpdateManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -23,8 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             picker = PickerWindowController(
                 items: items,
                 onChoose: { [weak self] item in self?.choose(item) },
-                onCancel: { NSApp.terminate(nil) }
+                onCancel: { NSApp.terminate(nil) },
+                onCheckForUpdates: { [weak self] in self?.updateManager.checkForUpdates() }
             )
+            updateManager.onAvailableUpdateChanged = { [weak self] version in
+                self?.picker?.showAvailableUpdate(version: version)
+            }
         } catch {
             let alert = NSAlert()
             alert.messageText = "Emoji data could not be loaded"
@@ -45,13 +50,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
             guard let self, !self.handledInitialSpotlightActivity else { return }
             self.awaitingInitialSpotlightActivity = false
-            self.picker?.showPicker()
+            self.presentPicker()
         }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         targetApp = TargetAppDetector.detect()
-        picker?.showPicker()
+        presentPicker()
         return true
     }
 
@@ -106,26 +111,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pendingSpotlightQuery = nil
         pendingSpotlightItemIdentifier = nil
         targetApp = TargetAppDetector.detect()
-        picker?.showPicker()
+        presentPicker()
     }
 
     private func presentPendingSpotlightActivityIfReady() {
-        guard let picker else { return }
+        guard picker != nil else { return }
 
         if let identifier = pendingSpotlightItemIdentifier {
             pendingSpotlightItemIdentifier = nil
             if let item = itemsBySpotlightIdentifier[identifier] {
                 choose(item)
             } else {
-                picker.showPicker()
+                presentPicker()
             }
             return
         }
 
         if let query = pendingSpotlightQuery {
             pendingSpotlightQuery = nil
-            picker.showPicker(searchQuery: query)
+            presentPicker(searchQuery: query)
         }
+    }
+
+    private func presentPicker(searchQuery: String = "") {
+        picker?.showPicker(searchQuery: searchQuery)
+        updateManager.probeForUpdateIfNeeded()
     }
 
     private func choose(_ item: EmojiItem) {
@@ -136,13 +146,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     NSApp.terminate(nil)
                 }
             case .copiedNeedsPermission:
-                self?.picker?.showPicker(searchQuery: item.name)
+                self?.presentPicker(searchQuery: item.name)
                 self?.picker?.showMessage("Copied \(item.emoji). Allow Accessibility, then choose it again to paste directly.")
             case .copiedNoTarget:
-                self?.picker?.showPicker(searchQuery: item.name)
+                self?.presentPicker(searchQuery: item.name)
                 self?.picker?.showMessage("Copied \(item.emoji). I couldn't identify the previous app.")
             case .copiedActivationFailed:
-                self?.picker?.showPicker(searchQuery: item.name)
+                self?.presentPicker(searchQuery: item.name)
                 self?.picker?.showMessage("Copied \(item.emoji). The previous app could not be activated.")
             }
         }

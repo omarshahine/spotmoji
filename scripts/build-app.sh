@@ -16,9 +16,14 @@ if [[ -e "$APP_PATH" ]]; then
     /usr/bin/trash "$APP_PATH"
 fi
 
-mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
+mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$APP_PATH/Contents/Frameworks"
 ditto "$BIN_DIR/Spotmoji" "$APP_PATH/Contents/MacOS/Spotmoji"
 ditto "$PROJECT_DIR/scripts/Info.plist" "$APP_PATH/Contents/Info.plist"
+ditto "$BIN_DIR/Sparkle.framework" "$APP_PATH/Contents/Frameworks/Sparkle.framework"
+
+if ! otool -l "$APP_PATH/Contents/MacOS/Spotmoji" | grep -Fq '@executable_path/../Frameworks'; then
+    install_name_tool -add_rpath '@executable_path/../Frameworks' "$APP_PATH/Contents/MacOS/Spotmoji"
+fi
 
 if [[ -n "${APP_VERSION:-}" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP_PATH/Contents/Info.plist"
@@ -33,10 +38,22 @@ fi
 
 ditto "$PROJECT_DIR/Assets/AppIcon.icns" "$APP_PATH/Contents/Resources/AppIcon.icns"
 
-if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
-    codesign --force --deep --sign - "$APP_PATH"
-else
-    codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$APP_PATH"
-fi
+sign_target() {
+    local target="$1"
+    if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
+        codesign --force --options runtime --sign - "$target"
+    else
+        codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$target"
+    fi
+}
+
+SPARKLE_VERSION_DIR="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
+sign_target "$SPARKLE_VERSION_DIR/XPCServices/Downloader.xpc"
+sign_target "$SPARKLE_VERSION_DIR/XPCServices/Installer.xpc"
+sign_target "$SPARKLE_VERSION_DIR/Autoupdate"
+sign_target "$SPARKLE_VERSION_DIR/Updater.app"
+sign_target "$APP_PATH/Contents/Frameworks/Sparkle.framework"
+sign_target "$APP_PATH"
+
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 echo "$APP_PATH"

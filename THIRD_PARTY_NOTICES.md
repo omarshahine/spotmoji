@@ -1,6 +1,12 @@
 # Third-party notices
 
-Spotmoji's generated emoji search metadata incorporates data from the following projects. These packages are used only when regenerating the checked-in resource. They are not runtime dependencies.
+Spotmoji embeds Sparkle for software updates. Its generated emoji search metadata also incorporates data from packages used only when regenerating the checked-in resource.
+
+## Sparkle 2.9.6
+
+Source: <https://github.com/sparkle-project/Sparkle>
+
+Sparkle and its bundled components are distributed under the notices in [docs/licenses/Sparkle.txt](docs/licenses/Sparkle.txt).
 
 ## Emojibase Data 17.0.0
 
