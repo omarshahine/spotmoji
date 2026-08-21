@@ -33,6 +33,7 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/release/Spotmoji-$VERSION.zip" >> "$GITHUB_ENV"
+          echo "APPCAST_PATH=$GITHUB_WORKSPACE/release/appcast.xml" >> "$GITHUB_ENV"
           echo "TAP_TAG=spotmoji-v$VERSION" >> "$GITHUB_ENV"
 
       - name: Test
@@ -117,6 +118,38 @@ jobs:
           SHA256="$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')"
           echo "SHA256=$SHA256" >> "$GITHUB_ENV"
 
+      - name: Generate signed Sparkle appcast
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          : "${SPARKLE_PRIVATE_KEY:?Missing SPARKLE_PRIVATE_KEY}"
+
+          RELEASE_NOTES_PATH="$GITHUB_WORKSPACE/release/Spotmoji-$VERSION.md"
+          gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$GITHUB_REF_NAME" \
+            -f target_commitish="$GITHUB_SHA" \
+            --jq '.body' > "$RELEASE_NOTES_PATH"
+
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | \
+            .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+              --ed-key-file - \
+              --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+              --link "https://omarknows.app/spotmoji/" \
+              --embed-release-notes \
+              --maximum-versions 1 \
+              --maximum-deltas 0 \
+              -o "$APPCAST_PATH" \
+              "$GITHUB_WORKSPACE/release"
+
+          test -s "$APPCAST_PATH"
+          grep -q 'sparkle:edSignature=' "$APPCAST_PATH"
+          grep -q "Spotmoji-$VERSION.zip" "$APPCAST_PATH"
+
       - name: Publish GitHub release
         shell: bash
         env:
@@ -124,9 +157,11 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" "$APPCAST_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "$ARCHIVE_PATH" \
+            gh release create "$GITHUB_REF_NAME" "$ARCHIVE_PATH" "$APPCAST_PATH" \
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
               --generate-notes \

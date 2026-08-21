@@ -16,6 +16,7 @@ Configure these GitHub Actions secrets on the Spotmoji repository:
 | `APP_STORE_CONNECT_API_ISSUER_ID` | App Store Connect team API issuer ID |
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Contents of the matching `AuthKey_*.p8` private key |
 | `HOMEBREW_TAP_TOKEN` | GitHub token with Contents read/write access to `omarshahine/homebrew-tap` |
+| `SPARKLE_PRIVATE_KEY` | Base64-encoded Ed25519 private seed used to sign update archives and appcasts |
 
 Configure this GitHub Actions repository variable:
 
@@ -40,8 +41,16 @@ codesign --verify --deep --strict --verbose=2 /Applications/Spotmoji.app
 spctl --assess --type execute --verbose=2 /Applications/Spotmoji.app
 ```
 
-The workflow tests the package, imports the signing identity into a temporary keychain, builds with the hardened runtime, notarizes with the App Store Connect API key, staples the ticket, creates the release archive, validates the cask, and updates the public tap.
+The workflow tests the package, imports the signing identity into a temporary keychain, signs Sparkle from the inside out, builds with the hardened runtime, notarizes with the App Store Connect API key, staples the ticket, and creates the release archive. It then signs the archive with Sparkle's EdDSA key, publishes `appcast.xml` beside the archive, validates the cask, and updates the public tap.
+
+Spotmoji reads its feed from the stable GitHub URL:
+
+```text
+https://github.com/omarshahine/spotmoji/releases/latest/download/appcast.xml
+```
+
+The first release containing Sparkle must be installed through Homebrew or GitHub. Releases after that can be installed from the update button inside Spotmoji. The Homebrew cask declares `auto_updates true` so Homebrew does not compete with Sparkle during normal upgrades.
 
 ## Mac App Store
 
-Mac App Store distribution is intentionally deferred. It will require an App Store signing profile, App Store Connect metadata, sandbox review, and a separate release workflow. The Homebrew build remains the current distribution target.
+Mac App Store distribution is intentionally deferred. It will require an App Store signing profile, App Store Connect metadata, sandbox review, a separate release workflow, and a build configuration that excludes Sparkle. The direct build remains the current distribution target.

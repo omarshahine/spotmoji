@@ -11,16 +11,24 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
     private var filteredItems: [EmojiItem]
     private let onChoose: (EmojiItem) -> Void
     private let onCancel: () -> Void
+    private let onCheckForUpdates: () -> Void
 
     private let searchField = NSSearchField()
     private let tableView = NSTableView()
     private let statusLabel = NSTextField(labelWithString: "")
+    private let updateButton = NSButton()
 
-    init(items: [EmojiItem], onChoose: @escaping (EmojiItem) -> Void, onCancel: @escaping () -> Void) {
+    init(
+        items: [EmojiItem],
+        onChoose: @escaping (EmojiItem) -> Void,
+        onCancel: @escaping () -> Void,
+        onCheckForUpdates: @escaping () -> Void
+    ) {
         self.allItems = items
         self.filteredItems = Array(items.prefix(80))
         self.onChoose = onChoose
         self.onCancel = onCancel
+        self.onCheckForUpdates = onCheckForUpdates
 
         let panel = PickerPanel(
             contentRect: NSRect(x: 0, y: 0, width: 620, height: 450),
@@ -80,6 +88,18 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
         statusLabel.textColor = .systemOrange
     }
 
+    func showAvailableUpdate(version: String?) {
+        guard let version else {
+            updateButton.isHidden = true
+            updateButton.title = ""
+            return
+        }
+
+        updateButton.title = "Update to \(version)"
+        updateButton.toolTip = "Download and install Spotmoji \(version)"
+        updateButton.isHidden = false
+    }
+
     func updatePermissionStatus() {
         if PasteCoordinator.isAccessibilityEnabled {
             statusLabel.stringValue = "↑↓ navigate   ↩ paste   esc close"
@@ -131,6 +151,21 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
         statusLabel.alignment = .center
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        updateButton.bezelStyle = .accessoryBarAction
+        updateButton.controlSize = .small
+        updateButton.font = .systemFont(ofSize: 11, weight: .medium)
+        updateButton.image = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: "Update")
+        updateButton.imagePosition = .imageLeading
+        updateButton.target = self
+        updateButton.action = #selector(checkForUpdates)
+        updateButton.isHidden = true
+
+        let footer = NSStackView(views: [statusLabel, updateButton])
+        footer.orientation = .horizontal
+        footer.alignment = .centerY
+        footer.spacing = 8
+        footer.translatesAutoresizingMaskIntoConstraints = false
+
         let separator = NSBox()
         separator.boxType = .separator
         separator.translatesAutoresizingMaskIntoConstraints = false
@@ -138,7 +173,7 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
         effect.addSubview(searchField)
         effect.addSubview(separator)
         effect.addSubview(scrollView)
-        effect.addSubview(statusLabel)
+        effect.addSubview(footer)
 
         NSLayoutConstraint.activate([
             searchField.topAnchor.constraint(equalTo: effect.topAnchor, constant: 16),
@@ -153,12 +188,12 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
             scrollView.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 6),
             scrollView.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 10),
             scrollView.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -10),
-            scrollView.bottomAnchor.constraint(equalTo: statusLabel.topAnchor, constant: -6),
+            scrollView.bottomAnchor.constraint(equalTo: footer.topAnchor, constant: -6),
 
-            statusLabel.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 12),
-            statusLabel.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -12),
-            statusLabel.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -8),
-            statusLabel.heightAnchor.constraint(equalToConstant: 16),
+            footer.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 12),
+            footer.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -12),
+            footer.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -8),
+            footer.heightAnchor.constraint(equalToConstant: 18),
         ])
     }
 
@@ -237,6 +272,10 @@ final class PickerWindowController: NSWindowController, NSSearchFieldDelegate, N
         let row = tableView.selectedRow
         guard filteredItems.indices.contains(row) else { return }
         onChoose(filteredItems[row])
+    }
+
+    @objc private func checkForUpdates() {
+        onCheckForUpdates()
     }
 
     private func select(row: Int) {

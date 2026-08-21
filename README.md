@@ -39,7 +39,7 @@ cd spotmoji
 open dist/Spotmoji.app
 ```
 
-The build script uses Swift Package Manager and produces `dist/Spotmoji.app`. No third-party dependencies are required.
+The build script uses Swift Package Manager and produces `dist/Spotmoji.app`. Sparkle is the only runtime package.
 
 ## Use it
 
@@ -64,9 +64,10 @@ macOS asks for Accessibility permission once so Spotmoji can return focus and se
 - **Spotlight first.** Emoji become native searchable Spotlight results.
 - **Human-friendly search.** Common aliases, related concepts, compact shortcodes, plurals, and small typos all work.
 - **Fast keyboard flow.** Search, arrows, Return. No mouse required.
-- **Local and private.** No account, analytics, network requests, or cloud service.
+- **Local and private.** No account, analytics, or cloud service. Search terms never leave your Mac.
+- **Secure self-updates.** The picker quietly checks the signed release feed and shows an update button when a new version is available.
 - **Native macOS.** AppKit, Core Spotlight, and the system emoji font. Nothing web-wrapped.
-- **Small footprint.** One Swift executable and the bundled Unicode catalog.
+- **Small footprint.** One native app, Sparkle, and the bundled Unicode catalog.
 
 ## How it works
 
@@ -94,7 +95,7 @@ Spotlight does not allow third-party apps to embed a live custom picker inside i
 |---|---|
 | AppKit instead of SwiftUI | A non-activating floating panel and precise keyboard focus are central to the experience. |
 | Core Spotlight index | Emoji appear as native system search results without replacing Spotlight. |
-| No runtime packages | Faster builds, a smaller attack surface, and no runtime supply-chain dependency. |
+| Sparkle for direct updates | Signed appcasts and EdDSA-signed archives provide a native update path without invoking Homebrew from the app. |
 | Weighted local search | Names and strong human aliases outrank broad related concepts, while typo correction runs only when an exact search has no results. |
 | Accessibility only for paste | Search and copy work without it. The permission is used only to restore the target and send Command-V. |
 | Public GitHub releases plus a Homebrew tap | The source, signed binaries, and one-command installation stay easy to inspect. |
@@ -115,7 +116,7 @@ The emoji catalog generator lives in `Tools/generate_emoji_data.swift`. Human se
 ./scripts/update-search-data.sh
 ```
 
-Third-party data licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Release signing, notarization, and Homebrew publication are documented in [docs/RELEASING.md](docs/RELEASING.md).
+Third-party software and data licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Release signing, notarization, Sparkle publication, and Homebrew publication are documented in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Privacy
 

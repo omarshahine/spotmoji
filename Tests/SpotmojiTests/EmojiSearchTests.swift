@@ -116,6 +116,36 @@ final class EmojiSearchTests: XCTestCase {
     }
 
     @MainActor
+    func testUpdateProbeIsThrottled() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+
+        XCTAssertTrue(UpdateManager.shouldProbe(lastProbeDate: nil, now: now))
+        XCTAssertFalse(UpdateManager.shouldProbe(lastProbeDate: now.addingTimeInterval(-60), now: now))
+        XCTAssertTrue(UpdateManager.shouldProbe(
+            lastProbeDate: now.addingTimeInterval(-UpdateManager.probeInterval),
+            now: now
+        ))
+    }
+
+    @MainActor
+    func testUpdateProbeIsPersistedOnlyAfterCompletion() {
+        let suiteName = "SpotmojiTests.UpdateProbe.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let manager = UpdateManager(defaults: defaults)
+        let startedAt = Date(timeIntervalSince1970: 1_000_000)
+        let completedAt = startedAt.addingTimeInterval(2)
+
+        XCTAssertTrue(manager.beginProbeIfNeeded(now: startedAt))
+        XCTAssertFalse(manager.beginProbeIfNeeded(now: startedAt))
+        XCTAssertTrue(UpdateManager.shouldProbe(lastProbeDate: nil, now: completedAt))
+
+        manager.finishProbe(now: completedAt)
+
+        XCTAssertFalse(manager.beginProbeIfNeeded(now: completedAt))
+    }
+
+    @MainActor
     func testTargetDetectorRejectsUtilitiesAndUnidentifiedProcesses() {
         XCTAssertFalse(TargetAppDetector.isEligible(
             bundleIdentifier: "app.cotypist.Cotypist",
