@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/omarshahine/spotmoji/releases/latest/download/Spotmoji.zip"><img src="https://img.shields.io/badge/Download-macOS-242424?style=for-the-badge&logo=apple" alt="Download Spotmoji for macOS"></a>
   <a href="https://omarknows.app/spotmoji/"><img src="https://img.shields.io/badge/Site-omarknows.app-242424?style=for-the-badge" alt="Spotmoji website"></a>
   <a href="https://github.com/omarshahine/spotmoji/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/omarshahine/spotmoji/ci.yml?branch=main&style=for-the-badge&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
@@ -22,13 +23,17 @@ Spotmoji is a focused, native macOS emoji picker. It indexes the Unicode emoji c
 
 ## Install
 
+### Direct download
+
+**[Download Spotmoji for macOS](https://github.com/omarshahine/spotmoji/releases/latest/download/Spotmoji.zip)**
+
+Open the ZIP and drag **Spotmoji** into your Applications folder. Spotmoji requires macOS 14 or later on Apple silicon. OmarKnows signs each release with Developer ID, and Apple notarizes it.
+
 ### Homebrew
 
 ```sh
 brew install --cask omarshahine/tap/spotmoji
 ```
-
-Release builds are signed with Developer ID and notarized by Apple.
 
 ### Build from source
 

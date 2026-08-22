@@ -33,6 +33,7 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/release/Spotmoji-$VERSION.zip" >> "$GITHUB_ENV"
+          echo "DIRECT_ARCHIVE_PATH=$GITHUB_WORKSPACE/release/Spotmoji.zip" >> "$GITHUB_ENV"
           echo "APPCAST_PATH=$GITHUB_WORKSPACE/release/appcast.xml" >> "$GITHUB_ENV"
           echo "TAP_TAG=spotmoji-v$VERSION" >> "$GITHUB_ENV"
 
@@ -159,12 +160,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          ditto "$ARCHIVE_PATH" "$DIRECT_ARCHIVE_PATH"
+          cmp "$ARCHIVE_PATH" "$DIRECT_ARCHIVE_PATH"
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" "$APPCAST_PATH" \
+            gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" "$DIRECT_ARCHIVE_PATH" "$APPCAST_PATH" \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "$ARCHIVE_PATH" "$APPCAST_PATH" \
+            gh release create "$GITHUB_REF_NAME" "$ARCHIVE_PATH" "$DIRECT_ARCHIVE_PATH" "$APPCAST_PATH" \
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
               --generate-notes \
