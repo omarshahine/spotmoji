@@ -222,8 +222,9 @@ struct EmojiSearchMetadata: Decodable, Equatable {
 
 enum EmojiStore {
     static func load() throws -> [EmojiItem] {
-        guard let emojiURL = Bundle.module.url(forResource: "emojis", withExtension: "json"),
-              let searchURL = Bundle.module.url(forResource: "emoji-search", withExtension: "json")
+        let resources = resourceBundle()
+        guard let emojiURL = resources.url(forResource: "emojis", withExtension: "json"),
+              let searchURL = resources.url(forResource: "emoji-search", withExtension: "json")
         else {
             throw CocoaError(.fileNoSuchFile)
         }
@@ -250,5 +251,22 @@ enum EmojiStore {
                 keywordSearchFields: search.keywordSearchFields
             )
         }
+    }
+
+    /// SwiftPM's generated `Bundle.module` accessor looks beside `Spotmoji.app`
+    /// when the executable is copied into a manually assembled app bundle. A
+    /// standard macOS app stores SwiftPM resource bundles in Contents/Resources,
+    /// so prefer that location and retain Bundle.module for tests and `swift run`.
+    private static func resourceBundle() -> Bundle {
+        if let appResources = packagedResourceBundle() {
+            return appResources
+        }
+
+        return Bundle.module
+    }
+
+    static func packagedResourceBundle() -> Bundle? {
+        guard let resourceURL = Bundle.main.resourceURL else { return nil }
+        return Bundle(url: resourceURL.appendingPathComponent("Spotmoji_Spotmoji.bundle"))
     }
 }

@@ -7,6 +7,8 @@ APP_PATH="$DIST_DIR/Spotmoji.app"
 export SWIFT_MODULECACHE_PATH="$PROJECT_DIR/.build/swift-module-cache"
 export CLANG_MODULE_CACHE_PATH="$PROJECT_DIR/.build/clang-module-cache"
 CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
+APP_VERSION="${APP_VERSION:-0.0.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-0}"
 
 cd "$PROJECT_DIR"
 swift build -c release --disable-sandbox
@@ -25,12 +27,8 @@ if ! otool -l "$APP_PATH/Contents/MacOS/Spotmoji" | grep -Fq '@executable_path/.
     install_name_tool -add_rpath '@executable_path/../Frameworks' "$APP_PATH/Contents/MacOS/Spotmoji"
 fi
 
-if [[ -n "${APP_VERSION:-}" ]]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP_PATH/Contents/Info.plist"
-fi
-if [[ -n "${BUILD_NUMBER:-}" ]]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP_PATH/Contents/Info.plist"
-fi
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP_PATH/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP_PATH/Contents/Info.plist"
 
 if [[ -d "$BIN_DIR/Spotmoji_Spotmoji.bundle" ]]; then
     ditto "$BIN_DIR/Spotmoji_Spotmoji.bundle" "$APP_PATH/Contents/Resources/Spotmoji_Spotmoji.bundle"
@@ -41,7 +39,10 @@ ditto "$PROJECT_DIR/Assets/AppIcon.icns" "$APP_PATH/Contents/Resources/AppIcon.i
 sign_target() {
     local target="$1"
     if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
-        codesign --force --options runtime --sign - "$target"
+        # Ad-hoc CI/local builds do not share a Developer ID team with the
+        # prebuilt Sparkle framework. Hardened runtime would enable library
+        # validation and prevent the packaged executable from loading Sparkle.
+        codesign --force --sign - "$target"
     else
         codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$target"
     fi
@@ -56,4 +57,5 @@ sign_target "$APP_PATH/Contents/Frameworks/Sparkle.framework"
 sign_target "$APP_PATH"
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+"$PROJECT_DIR/scripts/validate-app.sh" "$APP_PATH"
 echo "$APP_PATH"
