@@ -31,11 +31,10 @@ jobs:
           bash -n scripts/update-search-data.sh
           bash -n scripts/verify-update-feed.sh
           zsh -n scripts/build-app.sh
+          zsh -n scripts/validate-app.sh
 
       - name: Build app bundle
         run: ./scripts/build-app.sh
 
       - name: Validate app bundle
-        run: |
-          plutil -lint dist/Spotmoji.app/Contents/Info.plist
-          codesign --verify --deep --strict --verbose=2 dist/Spotmoji.app
+        run: ./scripts/validate-app.sh

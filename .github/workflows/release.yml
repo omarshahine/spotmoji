@@ -109,6 +109,9 @@ jobs:
           xcrun stapler validate dist/Spotmoji.app
           spctl --assess --type execute --verbose=2 dist/Spotmoji.app
 
+      - name: Validate notarized app
+        run: ./scripts/validate-app.sh
+
       - name: Package notarized app
         shell: bash
         run: |

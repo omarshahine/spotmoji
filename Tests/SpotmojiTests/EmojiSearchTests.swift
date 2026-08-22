@@ -159,8 +159,8 @@ final class EmojiSearchTests: XCTestCase {
     }
 
     @MainActor
-    func testAutomaticProbeUsesSparkleBackgroundUpdateCycle() {
-        let suiteName = "SpotmojiTests.BackgroundUpdate.\(UUID().uuidString)"
+    func testAutomaticProbeUsesSilentInformationCheck() {
+        let suiteName = "SpotmojiTests.InformationUpdate.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let updater = UpdateCheckerSpy()
@@ -168,8 +168,42 @@ final class EmojiSearchTests: XCTestCase {
 
         manager.probeForUpdateIfNeeded(now: Date(timeIntervalSince1970: 1_000_000))
 
-        XCTAssertEqual(updater.backgroundChecks, 1)
+        XCTAssertEqual(updater.informationChecks, 1)
         XCTAssertEqual(updater.userInitiatedChecks, 0)
+    }
+
+    @MainActor
+    func testProbeDeferredDuringSparkleStartupIsRetried() {
+        let suiteName = "SpotmojiTests.DeferredUpdate.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let updater = UpdateCheckerSpy()
+        updater.sessionInProgress = true
+        let manager = UpdateManager(defaults: defaults, updater: updater)
+
+        manager.probeForUpdateIfNeeded(now: Date(timeIntervalSince1970: 1_000_000))
+        XCTAssertEqual(updater.informationChecks, 0)
+
+        updater.sessionInProgress = false
+        manager.attemptPendingProbe()
+
+        XCTAssertEqual(updater.informationChecks, 1)
+    }
+
+    @MainActor
+    func testAvailableUpdateIsPresentedAfterSilentDiscoveryFinishes() {
+        let suiteName = "SpotmojiTests.PresentUpdate.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let updater = UpdateCheckerSpy()
+        let manager = UpdateManager(defaults: defaults, updater: updater)
+
+        manager.probeForUpdateIfNeeded(now: Date(timeIntervalSince1970: 1_000_000))
+        manager.recordAvailableUpdate(version: "0.3.4")
+        manager.completeUpdateCycle(now: Date(timeIntervalSince1970: 1_000_002))
+
+        XCTAssertEqual(updater.informationChecks, 1)
+        XCTAssertEqual(updater.userInitiatedChecks, 1)
     }
 
     @MainActor
@@ -221,11 +255,11 @@ final class EmojiSearchTests: XCTestCase {
 @MainActor
 private final class UpdateCheckerSpy: UpdateChecking {
     var sessionInProgress = false
-    var backgroundChecks = 0
+    var informationChecks = 0
     var userInitiatedChecks = 0
 
-    func checkForUpdatesInBackground() {
-        backgroundChecks += 1
+    func checkForUpdateInformation() {
+        informationChecks += 1
     }
 
     func checkForUpdates() {
